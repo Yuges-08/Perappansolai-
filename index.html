@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poorva Malai Vivasaya Sangam</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f1f5f1;color:#203326}
+header{background:#176b3a;color:white;padding:25px 15px;text-align:center}
+header h2{margin:5px;font-size:23px}
+header p{margin:8px}
+.container{max-width:500px;margin:22px auto;padding:15px}
+.card{background:white;padding:22px;border-radius:15px;margin-bottom:18px;box-shadow:0 3px 12px #0001}
+h3{margin-top:0;color:#176b3a}
+input,button{width:100%;padding:13px;margin:8px 0;border-radius:8px;font-size:16px}
+input{border:1px solid #ccc}
+button{border:0;background:#176b3a;color:white;font-weight:bold;cursor:pointer}
+button.secondary{background:#52645a}
+button.red{background:#c0392b}
+button:disabled{opacity:.5}
+.hidden{display:none}
+.info{background:#e9f5eb;padding:12px;border-radius:8px;margin:10px 0}
+small{color:#666}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:9px;border-bottom:1px solid #ddd;text-align:left}
+footer{text-align:center;color:#777;padding:20px}
+</style>
+</head>
+<body>
+
+<header>
+<h2>🌿 பூர்வ மலை விவசாய சங்கம்</h2>
+<p>POORVA MALAI VIVASAYA SANGAM</p>
+</header>
+
+<div class="container">
+
+<div id="home" class="card">
+<h3>Welcome</h3>
+<button onclick="show('driverLogin')">🚜 Driver Login</button>
+<button class="secondary" onclick="show('adminLogin')">🔐 Admin Login</button>
+</div>
+
+<div id="driverLogin" class="card hidden">
+<h3>Driver Login</h3>
+<input id="driverName" placeholder="Driver Name">
+<input id="driverPin" type="password" placeholder="Personal PIN">
+<button onclick="loginDriver()">Login</button>
+<button class="secondary" onclick="show('home')">Back</button>
+</div>
+
+<div id="driverPanel" class="card hidden">
+<h3>Driver Dashboard</h3>
+<div class="info">Driver: <b id="welcomeName"></b></div>
+<div class="info">Date: <span id="today"></span></div>
+<div class="info">Status: <b id="driverStatus">Not Started</b></div>
+<button id="startBtn" onclick="startWork()">🟢 Start Work</button>
+<button id="endBtn" class="red" onclick="endWork()">🔴 End Work</button>
+<div id="workInfo" class="info"></div>
+<button class="secondary" onclick="logout()">Logout</button>
+</div>
+
+<div id="adminLogin" class="card hidden">
+<h3>Admin Login</h3>
+<input id="adminPin" type="password" placeholder="Admin PIN">
+<button onclick="loginAdmin()">Login</button>
+<button class="secondary" onclick="show('home')">Back</button>
+</div>
+
+<div id="adminPanel" class="card hidden">
+<h3>Admin Dashboard</h3>
+<div class="info">🌿 Sangam Management</div>
+
+<h3>Add Driver</h3>
+<input id="newName" placeholder="Driver Name">
+<input id="newPin" type="password" placeholder="Create Personal PIN">
+<button onclick="addDriver()">Add Driver</button>
+
+<h3>Driver List</h3>
+<div id="driverList"></div>
+
+<h3>Attendance & Timing</h3>
+<div style="overflow-x:auto">
+<table>
+<thead>
+<tr><th>Name</th><th>Date</th><th>Start</th><th>End</th></tr>
+</thead>
+<tbody id="records"></tbody>
+</table>
+</div>
+<button class="secondary" onclick="exportCSV()">Download Attendance CSV</button>
+<button class="red" onclick="logout()">Logout</button>
+</div>
+
+</div>
+
+<footer>© Poorva Malai Vivasaya Sangam</footer>
+
+<script>
+const ADMIN_PIN = "2468";
+
+let drivers = JSON.parse(localStorage.getItem("pms_drivers") || "[]");
+let logs = JSON.parse(localStorage.getItem("pms_logs") || "[]");
+let currentDriver = null;
+
+function save(){
+ localStorage.setItem("pms_drivers",JSON.stringify(drivers));
+ localStorage.setItem("pms_logs",JSON.stringify(logs));
+}
+
+function show(id){
+ document.querySelectorAll(".container .card").forEach(x=>x.classList.add("hidden"));
+ document.getElementById(id).classList.remove("hidden");
+}
+
+function loginDriver(){
+ const name=document.getElementById("driverName").value.trim();
+ const pin=document.getElementById("driverPin").value.trim();
+ const d=drivers.find(x=>x.name.toLowerCase()===name.toLowerCase() && x.pin===pin);
+ if(!d){alert("Invalid Name or PIN");return;}
+ currentDriver=d;
+ document.getElementById("welcomeName").textContent=d.name;
+ show("driverPanel");
+ updateDriver();
+}
+
+function updateDriver(){
+ const today=new Date().toLocaleDateString("en-CA");
+ let log=logs.find(x=>x.name===currentDriver.name && x.date===today);
+ document.getElementById("today").textContent=today;
+ document.getElementById("driverStatus").textContent=
+ log?(log.end?"Work Completed":"Work Started"):"Not Started";
+ document.getElementById("startBtn").disabled=!!log;
+ document.getElementById("endBtn").disabled=!log || !!log.end;
+ document.getElementById("workInfo").textContent=log?
+ "Start: "+log.start+" | End: "+(log.end||"Not Completed"):
+ "You have not started work today.";
+}
+
+function startWork(){
+ const date=new Date().toLocaleDateString("en-CA");
+ if(logs.some(x=>x.name===currentDriver.name && x.date===date)){
+ alert("Already started today");return;
+ }
+ logs.push({
+ name:currentDriver.name,
+ date:date,
+ start:new Date().toLocaleTimeString(),
+ end:""
+ });
+ save();
+ updateDriver();
+}
+
+function endWork(){
+ const date=new Date().toLocaleDateString("en-CA");
+ const log=logs.find(x=>x.name===currentDriver.name && x.date===date);
+ if(!log || log.end)return;
+ log.end=new Date().toLocaleTimeString();
+ save();
+ updateDriver();
+}
+
+function loginAdmin(){
+ if(document.getElementById("adminPin").value!==ADMIN_PIN){
+ alert("Wrong Admin PIN");return;
+ }
+ show("adminPanel");
+ renderAdmin();
+}
+
+function addDriver(){
+ const name=document.getElementById("newName").value.trim();
+ const pin=document.getElementById("newPin").value.trim();
+ if(!name || !pin){alert("Enter Name and PIN");return;}
+ if(pin.length<4){alert("PIN must have at least 4 digits");return;}
+ if(drivers.some(x=>x.name.toLowerCase()===name.toLowerCase())){
+ alert("Driver already exists");return;
+ }
+ drivers.push({name,pin});
+ save();
+ document.getElementById("newName").value="";
+ document.getElementById("newPin").value="";
+ renderAdmin();
+ alert("Driver Added Successfully");
+}
+
+function renderAdmin(){
+ document.getElementById("driverList").innerHTML=
+ drivers.length?drivers.map(d=>"<div class='info'>🚜 "+escapeHTML(d.name)+"</div>").join(""):"No Drivers Added";
+
+ document.getElementById("records").innerHTML=
+ logs.slice().reverse().map(l=>
+ "<tr><td>"+escapeHTML(l.name)+"</td><td>"+l.date+
+ "</td><td>"+l.start+"</td><td>"+(l.end||"Pending")+"</td></tr>"
+ ).join("") || "<tr><td colspan='4'>No attendance records</td></tr>";
+}
+
+function escapeHTML(s){
+ return String(s).replace(/[&<>"']/g,c=>({
+ "&":"&amp;","<":"&lt;",">":"&gt;",
+ '"':"&quot;","'":"&#39;"
+ })[c]);
+}
+
+function exportCSV(){
+ let rows=[["Name","Date","Start","End"],
+ ...logs.map(l=>[l.name,l.date,l.start,l.end])];
+ let csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));
+ a.download="attendance.csv";
+ a.click();
+ URL.revokeObjectURL(a.href);
+}
+
+function logout(){
+ currentDriver=null;
+ document.getElementById("driverPin").value="";
+ document.getElementById("adminPin").value="";
+ show("home");
+}
+</script>
+</body>
+</html>
